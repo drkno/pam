@@ -4,7 +4,7 @@ const express = require('express');
 const DEFAULT_PORT = 4200;
 
 class WebServer {
-    constructor(ArgParser, Database, Logger) {
+    constructor(ArgParser) {
         this.argParser = ArgParser;
         this.argParser.addSingleArg('p', 'port', 'Port number', arg => {
             const port = arg - 0;
@@ -29,6 +29,10 @@ class WebServer {
         if (this.instance !== null) {
             this.instance.close();
         }
+    }
+
+    get() {
+        return this.server;
     }
 }
 

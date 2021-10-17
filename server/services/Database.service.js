@@ -1,21 +1,14 @@
 const Orm = require('../db/Orm');
+const ProxyClass = require('../util/ProxyClass');
 
 const DEFAULT_DB_FILE = 'pam.db';
 
-class Database {
+class Database extends ProxyClass {
     constructor(ArgParser) {
+        super(target => target.db);
         this.argParser = ArgParser;
         this.argParser.addSingleArg('d', 'database', 'Database file', ()=>{}, DEFAULT_DB_FILE);
         this.db = null;
-
-        return new Proxy(this, {
-            get: (target, property) => {
-                if (target[property]) {
-                    return target[property];
-                }
-                return target.db[property];
-            }
-        });
     }
 
     afterStart() {
