@@ -2,19 +2,12 @@ const Sqlite = require('better-sqlite3');
 const { readFileSync, readdirSync } = require('fs');
 const { join, basename } = require('path');
 
-class Database extends Sqlite {
+class Orm extends Sqlite {
     constructor(file) {
         super(file, {
             verbose: LOG.debug.bind(LOG)
         });
         this._migrate();
-        this.close = this.close.bind(this);
-        process.on('exit', this.close);
-    }
-
-    close() {
-        super.close();
-        process.removeListener('exit', this.close);
     }
 
     _migrate() {
@@ -55,4 +48,4 @@ class Database extends Sqlite {
     }
 }
 
-module.exports = Database;
+module.exports = Orm;
