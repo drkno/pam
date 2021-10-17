@@ -1,18 +1,24 @@
 class ArgParser {
-    constructor(shortPrefix = '-', longPrefix = '--') {
-        this.shortPrefix = shortPrefix;
-        this.longPrefix = longPrefix;
-        this.argsList = [];
-        this.argsMap = {};
-        this.helpAdded = false;
-        this.helpArg = null;
+    constructor() {
+        this._shortPrefix = '-';
+        this._longPrefix = '--';
+        this._argsList = [];
+        this._argsMap = {};
+        this._helpAdded = false;
+        this._helpArg = null;
+        this._parsedArgs = null;
+
+        this.addHelp('pam', 'Plex Account Manager');
     }
 
     addArg(short, long, description, validate = ()=>{}, defaultVal = [], filerResults = a=>a) {
+        if (this._parsedArgs !== null) {
+            throw new Error('This method can only be run during early startup');
+        }
         const argItem = {
             args: [
-                this.shortPrefix + short,
-                this.longPrefix + long
+                this._shortPrefix + short,
+                this._longPrefix + long
             ],
             short: short,
             long: long,
@@ -21,9 +27,9 @@ class ArgParser {
             defaultVal: defaultVal,
             filerResults: filerResults
         };
-        this.argsList.push(argItem);
-        this.argsMap[this.shortPrefix + short] = argItem;
-        this.argsMap[this.longPrefix + long] = argItem;
+        this._argsList.push(argItem);
+        this._argsMap[this._shortPrefix + short] = argItem;
+        this._argsMap[this._longPrefix + long] = argItem;
     }
 
     addSingleArg(short, long, description, validate = ()=>{}, defaultVal = []) {
@@ -50,13 +56,13 @@ class ArgParser {
     }
 
     addHelp(name, description, short = 'h', long = 'help', exit = true) {
-        if (this.helpAdded) {
+        if (this._helpAdded) {
             throw new Error('Help can only be added once');
         }
-        this.helpAdded = true;
-        this.helpArg = this.longPrefix + long;
+        this._helpAdded = true;
+        this._helpArg = this._longPrefix + long;
         this.addArg(short, long, 'Shows this help', () => {
-            this.printHelp(name, description);
+            this._printHelp(name, description);
 
             if (exit) {
                 process.exit(0);
@@ -64,20 +70,25 @@ class ArgParser {
         });
     }
 
-    printHelp(name, description) {
-        this.argsList.sort((a, b) => a.args[0] - b.args[0]);
+    _printHelp(name, description) {
+        this._argsList.sort((a, b) => a.args[0] - b.args[0]);
 
         let helpText = `\nNAME\n\t${name} - ${description}\n\nSYNOPSIS\n\t${name} [OPTION]...\n\nOPTIONS\n`;
 
-        for (let arg of this.argsList) {
+        for (let arg of this._argsList) {
             helpText += `\t${arg.args.join(', ')}\n\t\t${arg.description}\n\n`;
         }
 
         LOG.info(helpText);
     }
 
-    evaluate(args) {
-        const result = Object.values(this.argsList)
+    afterStart() {
+        if (this._parsedArgs !== null) {
+            throw new Error('This method can only be run during early startup');
+        }
+
+        const args = process.argv.slice(2);
+        const result = Object.values(this._argsList)
             .reduce((curr, next) => {
                 curr[next.short] = next.filerResults(next.defaultVal);
                 curr[next.long] = next.filerResults(next.defaultVal);
@@ -85,13 +96,13 @@ class ArgParser {
             }, {});
         let i = 0;
         while (i < args.length) {
-            const arg = this.argsMap[args[i++]];
+            const arg = this._argsMap[args[i++]];
             const argPos = i;
             try {
                 if (!arg) {
                     throw new Error();
                 }
-                while (i < args.length && !this.argsMap[args[i]]) {
+                while (i < args.length && !this._argsMap[args[i]]) {
                     i++;
                 }
                 let subArgs = args.slice(argPos, i);
@@ -103,18 +114,25 @@ class ArgParser {
                 this._handleInvalidArg(args[i - 1]);
             }
         }
-        return result;
+        this._parsedArgs = result;
+    }
+
+    getArgument(argument) {
+        if (this._parsedArgs === null) {
+            throw new Error('Arguments are not yet parsed');
+        }
+
+        return this._parsedArgs[argument];
     }
 
     _handleInvalidArg(arg) {
-        const helpArg = this.helpAdded
-            ? `Use ${this.helpArg} for more information.`
+        const helpArg = this._helpAdded
+            ? `Use ${this._helpArg} for more information.`
             : '';
 
         LOG.error(`Unknown argument ${arg}. ${helpArg}`);
         process.exit(-1);
     }
 }
-
 
 module.exports = ArgParser;
