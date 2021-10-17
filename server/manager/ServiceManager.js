@@ -1,22 +1,25 @@
-const { readdirSync } = require('fs');
-const { join, parse } = require('path');
+const { parse } = require('path');
+const { walkFileTree } = require('../util/Files');
 
 class ServiceManager {
 
-    constructor() {
-        const {
-            services,
-            startingNodes,
-            serviceGraph
-        } = this._buildServiceGraph();
-        this._services = services;
-        this._startingNodes = startingNodes;
-        this._serviceGraph = serviceGraph;
+    constructor(servicePaths, serviceSuffixes) {
+        this._loading = this._buildServiceGraph(servicePaths, serviceSuffixes)
+            .then(({
+                services,
+                startingNodes,
+                serviceGraph
+            }) => {
+                this._services = services;
+                this._startingNodes = startingNodes;
+                this._serviceGraph = serviceGraph;
+            });
 
         this._runningServices = {};
     }
 
     async startServices() {
+        await this._loading;
         if (Object.keys(this._runningServices).length > 0) {
             throw new Error('Services already started');
         }
@@ -43,7 +46,8 @@ class ServiceManager {
             throw new Error('Some services failed to start');
         }
 
-        for (let service of Object.values(this._runningServices)) {
+        const runningServices = Object.values(this._runningServices);
+        for (let service of runningServices) {
             if (service.afterStart) {
                 await service.afterStart();
             }
@@ -51,7 +55,8 @@ class ServiceManager {
     }
 
     async stopServices() {
-        for (let service of Object.values(this._runningServices)) {
+        const runningServices = Object.values(this._runningServices);
+        for (let service of runningServices) {
             if (service.beforeStop) {
                 await service.beforeStop();
             }
@@ -60,13 +65,17 @@ class ServiceManager {
         this._runningServices = {};
     }
 
-    _buildServiceGraph() {
-        const services = this._enumerateServices()
+    async _buildServiceGraph(servicePaths, serviceSuffixes) {
+        const replaceRegex = new RegExp('(' + serviceSuffixes
+            .map(suffix => suffix.replace('.js', ''))
+            .map(suffix => suffix.replace(/\./g, '\\.'))
+            .join('|') + ')$');
+        const services = (await this._enumerateServices(servicePaths, serviceSuffixes))
             .map(serviceFile => {
                 const clazz = require(serviceFile);
                 const name = parse(serviceFile)
                     .name
-                    .replace(/\.service$/,'');
+                    .replace(replaceRegex,'');
                 return {
                     args: this._extractArgs(clazz),
                     clazz,
@@ -105,11 +114,15 @@ class ServiceManager {
         };
     }
 
-    _enumerateServices() {
-        const servicesPath = join(__dirname, '../services');
-        const services = readdirSync(servicesPath)
-            .filter(file => file.endsWith('.service.js'))
-            .map(file => join(servicesPath, file));
+    async _enumerateServices(servicePaths, serviceSuffixes) {
+        const services = [];
+        for (let servicePath of servicePaths) {
+            for await (const file of walkFileTree(servicePath)) {
+                if (serviceSuffixes.some(suffix => file.endsWith(suffix))) {
+                    services.push(file);
+                }
+            }
+        }
         return services;
     }
 
