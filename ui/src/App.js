@@ -1,23 +1,20 @@
-import './App.css';
+import React from 'react';
+import CssBaseline from '@mui/material/CssBaseline';
+import Container from '@mui/material/Container';
+import { createTheme, ThemeProvider } from '@mui/material/styles';
 
-function App() {
-  return (
-    <div className="App">
-      <header className="App-header">
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
-}
+import InvitePage from './invite/invite';
+
+const theme = createTheme();
+
+const App = () => (
+    <ThemeProvider theme={theme}>
+        <Container component='main'>
+            <CssBaseline />
+            <InvitePage inviter='drkno'
+                        server='Agent Smith' />
+        </Container>
+    </ThemeProvider>
+);
 
 export default App;
