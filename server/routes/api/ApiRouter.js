@@ -8,7 +8,7 @@ class ApiRouter {
     }
 
     _mapMethods(routeName) {
-        const methodRegex = /^(get|head|post|put|delete|connect|options|trace|patch|use|all)(.*)/i;
+        const methodRegex = /^(get|head|post|put|delete|connect|options|trace|patch|use|all)_*(.*)/i;
         const methods = this._enumerateMethods();
         for (const classMethod of methods) {
             const match = methodRegex.exec(classMethod);
@@ -16,9 +16,11 @@ class ApiRouter {
                 continue;
             }
             const httpMethod = match[1];
-            const path = '/api/' + this._apiVersion + routeName + '/' + (match[2] || '').replace(/_/g, '/');
+            const subpath = (match[2] || '').replace(/_/g, '/');
+            const path = '/api/' + this._apiVersion + routeName + (subpath ? '/' + subpath : '');
 
             const classMethodInstance = this[classMethod].bind(this);
+            classMethodInstance.toString = () => this[classMethod].toString();
             const router = this._webServer.get();
             router[httpMethod].call(router, path, classMethodInstance);
         }

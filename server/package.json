@@ -10,6 +10,8 @@
   "dependencies": {
     "better-sqlite3": "^7.4.3",
     "express": "^4.17.1",
+    "express-sitemap-html": "^1.2.4",
+    "uuid": "^8.3.2",
     "winston": "^3.3.3"
   }
 }
